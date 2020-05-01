@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from model import BasicCNNModel
-from utils import transform_dim, resize, flt, npy, itg, \
+from arc_models import BasicCNNModel
+from arc_utils import transform_dim, resize, flt, npy, itg, \
     flattener, ARCDataset
 
 T = torch.Tensor
@@ -33,78 +33,79 @@ TEST_PATH = TEST_PATH / 'test'
 SUBMISSION_PATH = SUBMISSION_PATH / 'sample_submission.csv'
 
 
-test_task_files = sorted(os.listdir(TEST_PATH))
+if __name__ == '__main__':
 
-test_tasks = []
-for task_file in test_task_files:
-    with open(str(TEST_PATH / task_file), 'r') as f:
-        task = json.load(f)
-        test_tasks.append(task)
+    test_task_files = sorted(os.listdir(TEST_PATH))
 
-Xs_test, Xs_train, ys_train = [], [], []
+    test_tasks = []
+    for task_file in test_task_files:
+        with open(str(TEST_PATH / task_file), 'r') as f:
+            task = json.load(f)
+            test_tasks.append(task)
 
-for task in test_tasks:
-    X_test, X_train, y_train = [], [], []
+    Xs_test, Xs_train, ys_train = [], [], []
 
-    for pair in task["test"]:
-        X_test.append(pair["input"])
+    for task in test_tasks:
+        X_test, X_train, y_train = [], [], []
 
-    for pair in task["train"]:
-        X_train.append(pair["input"])
-        y_train.append(pair["output"])
+        for pair in task["test"]:
+            X_test.append(pair["input"])
 
-    Xs_test.append(X_test)
-    Xs_train.append(X_train)
-    ys_train.append(y_train)
+        for pair in task["train"]:
+            X_train.append(pair["input"])
+            y_train.append(pair["output"])
 
-idx = 0
-start = time.time()
-test_predictions = []
+        Xs_test.append(X_test)
+        Xs_train.append(X_train)
+        ys_train.append(y_train)
 
-for X_train, y_train in zip(Xs_train, ys_train):
+    idx = 0
+    start = time.time()
+    test_predictions = []
 
-    print("TASK " + str(idx + 1))
+    for X_train, y_train in zip(Xs_train, ys_train):
 
-    train_set = ARCDataset(X_train, y_train, SIZE, stage="train")
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
+        print("TASK " + str(idx + 1))
 
-    inp_dim = np.array(X_train[0]).shape
-    outp_dim = np.array(y_train[0]).shape
-    network = BasicCNNModel(CONV_OUT_1, CONV_OUT_2, inp_dim, outp_dim).cuda()
-    optimizer = Adam(network.parameters(), lr=0.01)
+        train_set = ARCDataset(X_train, y_train, SIZE, stage="train")
+        train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
 
-    for epoch in range(EPOCHS):
-        for train_batch in train_loader:
-            train_X, train_y, out_d, d, out = train_batch
-            train_preds = network.forward(train_X.cuda(), out_d.cuda())
-            train_loss = nn.MSELoss()(train_preds, train_y.cuda())
+        inp_dim = np.array(X_train[0]).shape
+        outp_dim = np.array(y_train[0]).shape
+        network = BasicCNNModel(CONV_OUT_1, CONV_OUT_2, inp_dim, outp_dim).cuda()
+        optimizer = Adam(network.parameters(), lr=0.01)
 
-            optimizer.zero_grad()
-            train_loss.backward()
-            optimizer.step()
+        for epoch in range(EPOCHS):
+            for train_batch in train_loader:
+                train_X, train_y, out_d, d, out = train_batch
+                train_preds = network.forward(train_X.cuda(), out_d.cuda())
+                train_loss = nn.MSELoss()(train_preds, train_y.cuda())
 
-    end = time.time()
-    print("Train loss: " + str(np.round(train_loss.item(), 3)) + "   " + \
-          "Total time: " + str(np.round(end - start, 1)) + " s" + "\n")
+                optimizer.zero_grad()
+                train_loss.backward()
+                optimizer.step()
 
-    X_test = np.array([resize(flt(X), np.shape(X), inp_dim) for X in Xs_test[idx - 1]])
-    for X in X_test:
-        test_dim = np.array(T(X)).shape
-        test_preds = npy(network.forward(T(X).unsqueeze(0).cuda(), out_d.cuda()))
-        test_preds = np.argmax(test_preds.reshape((10, *outp_dim)), axis=0)
-        test_predictions.append(itg(resize(test_preds, np.shape(test_preds),
-                                           tuple(itg(transform_dim(inp_dim,
-                                                                   outp_dim,
-                                                                   test_dim))))))
-    idx += 1
+        end = time.time()
+        print("Train loss: " + str(np.round(train_loss.item(), 3)) + "   " + \
+              "Total time: " + str(np.round(end - start, 1)) + " s" + "\n")
 
-test_predictions = [[list(pred) for pred in test_pred] for test_pred in test_predictions]
+        X_test = np.array([resize(flt(X), np.shape(X), inp_dim) for X in Xs_test[idx - 1]])
+        for X in X_test:
+            test_dim = np.array(T(X)).shape
+            test_preds = npy(network.forward(T(X).unsqueeze(0).cuda(), out_d.cuda()))
+            test_preds = np.argmax(test_preds.reshape((10, *outp_dim)), axis=0)
+            test_predictions.append(itg(resize(test_preds, np.shape(test_preds),
+                                               tuple(itg(transform_dim(inp_dim,
+                                                                       outp_dim,
+                                                                       test_dim))))))
+        idx += 1
 
-for idx, pred in enumerate(test_predictions):
-    test_predictions[idx] = flattener(pred)
+    test_predictions = [[list(pred) for pred in test_pred] for test_pred in test_predictions]
 
-submission = pd.read_csv(SUBMISSION_PATH)
-submission["output"] = test_predictions
+    for idx, pred in enumerate(test_predictions):
+        test_predictions[idx] = flattener(pred)
 
+    submission = pd.read_csv(SUBMISSION_PATH)
+    submission["output"] = test_predictions
 
-submission.to_csv("submission.csv", index=False)
+    submission.to_csv("submission.csv", index=False)
