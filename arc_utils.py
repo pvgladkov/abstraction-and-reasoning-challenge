@@ -1,3 +1,6 @@
+import json
+import os
+
 import cv2
 import numpy as np
 from keras.utils import to_categorical
@@ -39,17 +42,19 @@ def resize(x, test_dim, inp_dim):
     if inp_dim == test_dim:
         return x
     else:
-        return cv2.resize(flt(x), inp_dim,
-                          interpolation=cv2.INTER_AREA)
+        return cv2.resize(flt(x), inp_dim, interpolation=cv2.INTER_AREA)
 
 
-def flt(x): return np.float32(x)
+def flt(x):
+    return np.float32(x)
 
 
-def npy(x): return x.cpu().detach().numpy()
+def npy(x):
+    return x.cpu().detach().numpy()
 
 
-def itg(x): return np.int32(np.round(x))
+def itg(x):
+    return np.int32(np.round(x))
 
 
 def flattener(pred):
@@ -95,3 +100,27 @@ class ARCDataset(Dataset):
                 outp, outp_probs_len, outp_matrix_dims = get_outp(outp, None, False)
 
         return inp, outp, outp_probs_len, outp_matrix_dims, self.y
+
+
+def debug_json(names, x_test, y_test):
+    for t_name, x, y in zip(names, x_test, y_test):
+
+        data = {'train': [{'input': x, 'output': [list(map(int, list(a))) for a in y]}],
+                'test': [{'input': x}]}
+
+        with open('debug/{}.json'.format(t_name), 'w') as f:
+            f.write(json.dumps(data))
+
+
+def get_test_tasks(test_path):
+    test_task_files = sorted(os.listdir(test_path))
+    test_tasks = []
+    names = []
+    for task_file in test_task_files:
+        name = task_file.split('.')[0]
+        names.append(name)
+        with open(str(test_path / task_file), 'r') as f:
+            task = json.load(f)
+            test_tasks.append(task)
+
+    return test_tasks, names

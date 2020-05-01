@@ -1,2 +1,4 @@
 kaggle
 opencv-python
+torch
+pandas

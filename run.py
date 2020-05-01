@@ -1,5 +1,3 @@
-import json
-import os
 import time
 from pathlib import Path
 
@@ -7,18 +5,18 @@ import numpy as np
 import pandas as pd
 import torch
 
-from arc_models import BasicCNNModel
-from arc_utils import transform_dim, resize, flt, npy, itg, \
-    flattener, ARCDataset
-
-T = torch.Tensor
 import torch.nn as nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
+from arc_models import BasicCNNModel
+from arc_utils import transform_dim, resize, flt, npy, itg, \
+    flattener, ARCDataset, debug_json, get_test_tasks
+
+T = torch.Tensor
 
 SIZE = 1000
-EPOCHS = 2
+EPOCHS = 50
 CONV_OUT_1 = 50
 CONV_OUT_2 = 100
 BATCH_SIZE = 128
@@ -32,24 +30,21 @@ SUBMISSION_PATH = Path('/data/arc/')
 TEST_PATH = TEST_PATH / 'test'
 SUBMISSION_PATH = SUBMISSION_PATH / 'sample_submission.csv'
 
+DEBUG = True
 
 if __name__ == '__main__':
 
-    test_task_files = sorted(os.listdir(TEST_PATH))
-
-    test_tasks = []
-    for task_file in test_task_files:
-        with open(str(TEST_PATH / task_file), 'r') as f:
-            task = json.load(f)
-            test_tasks.append(task)
+    test_tasks, task_names = get_test_tasks(TEST_PATH)
 
     Xs_test, Xs_train, ys_train = [], [], []
+    y_task_names = []
 
-    for task in test_tasks:
+    for task, name in zip(test_tasks, task_names):
         X_test, X_train, y_train = [], [], []
 
-        for pair in task["test"]:
+        for i, pair in enumerate(task["test"]):
             X_test.append(pair["input"])
+            y_task_names.append('{}_{}'.format(name, i))
 
         for pair in task["train"]:
             X_train.append(pair["input"])
@@ -102,10 +97,13 @@ if __name__ == '__main__':
 
     test_predictions = [[list(pred) for pred in test_pred] for test_pred in test_predictions]
 
+    if DEBUG:
+        Xs_test_flat = [item for t in Xs_test for item in t]
+        debug_json(y_task_names, Xs_test_flat, test_predictions)
+
     for idx, pred in enumerate(test_predictions):
         test_predictions[idx] = flattener(pred)
 
-    submission = pd.read_csv(SUBMISSION_PATH)
-    submission["output"] = test_predictions
+    submission = pd.DataFrame({'output_id': y_task_names, 'output': test_predictions})
 
     submission.to_csv("submission.csv", index=False)
