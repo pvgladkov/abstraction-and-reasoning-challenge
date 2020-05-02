@@ -2,3 +2,4 @@ kaggle
 opencv-python
 torch
 pandas
+tensorflow

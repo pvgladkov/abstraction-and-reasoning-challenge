@@ -7,6 +7,8 @@ from keras.utils import to_categorical
 from torch.utils.data import Dataset
 import logging
 import sys
+import pandas as pd
+from os.path import join as path_join
 
 
 def replace_values(a, d):
@@ -138,3 +140,23 @@ def get_logger():
     handler.setFormatter(formatter)
     root.addHandler(handler)
     return root
+
+
+def inp2img(inp):
+    inp = np.array(inp)
+    img = np.full((10, inp.shape[0], inp.shape[1]), 0, dtype=np.uint8)
+    for i in range(10):
+        img[i] = (inp == i)
+    return img
+
+
+def load_data(path):
+    tasks = pd.Series()
+    for file_path in os.listdir(path):
+        task_file = path_join(path, file_path)
+
+        with open(task_file, 'r') as f:
+            task = json.load(f)
+
+        tasks[file_path[:-5]] = task
+    return tasks

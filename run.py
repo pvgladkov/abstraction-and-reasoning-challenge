@@ -72,6 +72,7 @@ if __name__ == '__main__':
         outp_dim = np.array(y_train[0]).shape
         network = BasicCNNModel(CONV_OUT_1, CONV_OUT_2, inp_dim, outp_dim).cuda()
         optimizer = Adam(network.parameters(), lr=0.01)
+        criterion = nn.MSELoss()
 
         for epoch in range(EPOCHS):
             epoch_loss = 0
@@ -79,7 +80,7 @@ if __name__ == '__main__':
             for train_batch in train_loader:
                 train_X, train_y, out_d, d, out = train_batch
                 train_preds = network.forward(train_X.cuda(), out_d.cuda())
-                train_loss = nn.MSELoss()(train_preds, train_y.cuda())
+                train_loss = criterion(train_preds, train_y.cuda())
 
                 optimizer.zero_grad()
                 train_loss.backward()
