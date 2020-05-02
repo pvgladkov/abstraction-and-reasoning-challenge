@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from arc_models import BasicCNNModel
 from arc_utils import transform_dim, resize, flt, npy, itg, \
-    flattener, ARCDataset, debug_json, get_test_tasks
+    flattener, ARCDataset, debug_json, get_test_tasks, get_logger
 
 T = torch.Tensor
 
@@ -31,6 +31,9 @@ TEST_PATH = TEST_PATH / 'test'
 SUBMISSION_PATH = SUBMISSION_PATH / 'sample_submission.csv'
 
 DEBUG = True
+
+logger = get_logger()
+
 
 if __name__ == '__main__':
 
@@ -60,7 +63,7 @@ if __name__ == '__main__':
 
     for X_train, y_train in zip(Xs_train, ys_train):
 
-        print("TASK " + str(idx + 1))
+        logger.info("TASK " + str(idx + 1))
 
         train_set = ARCDataset(X_train, y_train, SIZE, stage="train")
         train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
@@ -71,6 +74,8 @@ if __name__ == '__main__':
         optimizer = Adam(network.parameters(), lr=0.01)
 
         for epoch in range(EPOCHS):
+            epoch_loss = 0
+            num_examples = 0
             for train_batch in train_loader:
                 train_X, train_y, out_d, d, out = train_batch
                 train_preds = network.forward(train_X.cuda(), out_d.cuda())
@@ -80,11 +85,16 @@ if __name__ == '__main__':
                 train_loss.backward()
                 optimizer.step()
 
-        end = time.time()
-        print("Train loss: " + str(np.round(train_loss.item(), 3)) + "   " + \
-              "Total time: " + str(np.round(end - start, 1)) + " s" + "\n")
+                epoch_loss += train_loss.item()
+                num_examples += len(train_y)
 
-        X_test = np.array([resize(flt(X), np.shape(X), inp_dim) for X in Xs_test[idx - 1]])
+            logger.debug('task {}, epoch {}, loss {}'.format(idx+1, epoch, round(epoch_loss/num_examples, 6)))
+
+        end = time.time()
+        logger.info("Total time: " + str(np.round(end - start, 1)) + " s")
+
+        X_test = np.array([resize(flt(X), np.shape(X), inp_dim) for X in Xs_test[idx]])
+
         for X in X_test:
             test_dim = np.array(T(X)).shape
             test_preds = npy(network.forward(T(X).unsqueeze(0).cuda(), out_d.cuda()))
