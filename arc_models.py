@@ -2,11 +2,8 @@ import torch
 from torch import nn as nn
 from torch.nn import Conv2d
 from torch.optim import Adam
-from arc_utils import inp2img, flattener, dump_json
 from tqdm import tqdm
 import numpy as np
-import pandas as pd
-
 
 
 class BasicCNNModel(nn.Module):
@@ -109,19 +106,9 @@ def evaluate(tasks):
     return result, predictions
 
 
-def make_prediction(tasks, debug=False):
-    ts = TaskSolver()
-    result = pd.Series()
-    for idx, task in tqdm(tasks.iteritems()):
-        if input_output_shape_is_same(task):
-            ts.train(task['train'])
-            pred = ts.predict(task['test'])
-        else:
-            pred = [el['input'] for el in task['test']]
-
-        for i, p in enumerate(pred):
-            result[f'{idx}_{i}'] = flattener(np.array(p).tolist())
-            if debug:
-                dump_json(f'{idx}_{i}', task['test'][i]['input'], p)
-
-    return result
+def inp2img(inp):
+    inp = np.array(inp)
+    img = np.full((10, inp.shape[0], inp.shape[1]), 0, dtype=np.uint8)
+    for i in range(10):
+        img[i] = (inp == i)
+    return img

@@ -145,14 +145,6 @@ def get_logger():
     return root
 
 
-def inp2img(inp):
-    inp = np.array(inp)
-    img = np.full((10, inp.shape[0], inp.shape[1]), 0, dtype=np.uint8)
-    for i in range(10):
-        img[i] = (inp == i)
-    return img
-
-
 def load_data(path):
     tasks = pd.Series()
     for file_path in os.listdir(path):
