@@ -108,12 +108,15 @@ class ARCDataset(Dataset):
 
 def debug_json(names, x_test, y_test):
     for t_name, x, y in zip(names, x_test, y_test):
+        dump_json(t_name, x, y)
 
-        data = {'train': [{'input': x, 'output': [list(map(int, list(a))) for a in y]}],
-                'test': [{'input': x}]}
 
-        with open('debug/{}.json'.format(t_name), 'w') as f:
-            f.write(json.dumps(data))
+def dump_json(name, x, y):
+    data = {'train': [{'input': x, 'output': [list(map(int, list(a))) for a in y]}],
+            'test': [{'input': x}]}
+
+    with open('debug/{}.json'.format(name), 'w') as f:
+        f.write(json.dumps(data))
 
 
 def get_test_tasks(test_path):

@@ -2,9 +2,11 @@ import torch
 from torch import nn as nn
 from torch.nn import Conv2d
 from torch.optim import Adam
-from arc_utils import inp2img
+from arc_utils import inp2img, flattener, dump_json
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
+
 
 
 class BasicCNNModel(nn.Module):
@@ -50,15 +52,15 @@ class TaskSolver:
         self.net = None
 
     def train(self, task_train, n_epoch=30):
-        self.net = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2)
+        self.net = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2).cuda()
 
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.net.parameters(), lr=0.1)
 
         for epoch in range(n_epoch):
             for sample in task_train:
-                inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0)
-                labels = torch.LongTensor(sample['output']).unsqueeze(dim=0)
+                inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
+                labels = torch.LongTensor(sample['output']).unsqueeze(dim=0).cuda()
 
                 optimizer.zero_grad()
                 outputs = self.net(inputs)
@@ -72,7 +74,7 @@ class TaskSolver:
         predictions = []
         with torch.no_grad():
             for sample in task_test:
-                inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0)
+                inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
                 outputs = self.net(inputs)
                 pred = outputs.squeeze(dim=0).cpu().numpy().argmax(0)
                 predictions.append(pred)
@@ -105,3 +107,21 @@ def evaluate(tasks):
         result.append(score)
 
     return result, predictions
+
+
+def make_prediction(tasks, debug=False):
+    ts = TaskSolver()
+    result = pd.Series()
+    for idx, task in tqdm(tasks.iteritems()):
+        if input_output_shape_is_same(task):
+            ts.train(task['train'])
+            pred = ts.predict(task['test'])
+        else:
+            pred = [el['input'] for el in task['test']]
+
+        for i, p in enumerate(pred):
+            result[f'{idx}_{i}'] = flattener(np.array(p).tolist())
+            if debug:
+                dump_json(f'{idx}_{i}', task['test'][i]['input'], p)
+
+    return result

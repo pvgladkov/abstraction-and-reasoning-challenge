@@ -1,9 +1,13 @@
+import cv2
+import torch
 from arc_utils import load_data
-from arc_models import TaskSolver, evaluate
+from arc_models import TaskSolver, evaluate, make_prediction
 
 BASE_PATH = '/data/arc/'
 
 # BASE_PATH = '../input/abstraction-and-reasoning-challenge/'
+
+DEBUG = True
 
 
 if __name__ == '__main__':
@@ -22,3 +26,8 @@ if __name__ == '__main__':
 
     total = sum([len(score) for score in evaluation_result])
     print(f"solved : {sum(evaluation_solved)} from {total} ({sum(evaluation_solved) / total})")
+
+    submission = make_prediction(test_tasks, DEBUG)
+    submission = submission.reset_index()
+    submission.columns = ['output_id', 'output']
+    submission.to_csv('submission.csv', index=False)
