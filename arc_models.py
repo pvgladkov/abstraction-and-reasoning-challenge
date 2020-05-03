@@ -1,9 +1,31 @@
 import torch
 from torch import nn as nn
-from torch.nn import Conv2d
+from torch.nn import Conv2d, Conv3d
 from torch.optim import Adam
 from tqdm import tqdm
 import numpy as np
+
+
+class Conv2(nn.Module):
+    def __init__(self):
+        super(Conv2, self).__init__()
+        self.conv1 = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2)
+        self.conv2 = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2)
+
+    def forward(self, x):
+        conv1_output = self.conv1(x)
+        conv2_output = self.conv2(conv1_output)
+        return conv2_output
+
+
+class Conv1(nn.Module):
+    def __init__(self):
+        super(Conv1, self).__init__()
+        self.conv1 = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2)
+
+    def forward(self, x):
+        conv1_output = self.conv1(x)
+        return conv1_output
 
 
 class TaskSolver:
@@ -13,7 +35,7 @@ class TaskSolver:
         self.logger = logger
 
     def train(self, task_train, n_epoch=30, debug=False):
-        self.net = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2).cuda()
+        self.net = Conv1().cuda()
 
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.net.parameters(), lr=0.1)
@@ -24,6 +46,8 @@ class TaskSolver:
             for sample in task_train:
                 inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
                 labels = torch.LongTensor(sample['output']).unsqueeze(dim=0).cuda()
+
+                # self.logger.debug(f'inputs {inputs.shape}, labels {labels.shape}')
 
                 optimizer.zero_grad()
                 outputs = self.net(inputs)
@@ -47,6 +71,8 @@ class TaskSolver:
                 outputs = self.net(inputs)
                 pred = outputs.squeeze(dim=0).cpu().numpy().argmax(0)
                 predictions.append(pred)
+
+                # self.logger.debug(f'prediction inputs {inputs.shape}, outputs {outputs.shape}, pred {pred.shape}')
 
         return predictions
 
