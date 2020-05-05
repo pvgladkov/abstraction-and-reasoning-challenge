@@ -8,12 +8,12 @@ from torch.optim import Adam
 from numpy.random import randint
 
 from arc_utils import load_data, flattener, dump_json, get_logger
-from arc_models import TaskSolver, evaluate, input_output_shape_is_same, build_base_net
+from arc_models import TaskSolver, evaluate, input_output_shape_is_same
 import pickle
-from arc_models import inp2img, Conv1
+from arc_models import Conv1
+from arc_img_utils import inp2img
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, RandomSampler, DataLoader, SequentialSampler
-from unet import UNet
 
 
 BASE_PATH = '/data/arc'
@@ -44,8 +44,7 @@ if __name__ == '__main__':
 
     ch = 10
 
-    # net = Conv1()
-    net = UNet(in_channels=10, n_classes=1, depth=2, padding=True)
+    net = Conv1()
     net.cuda()
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(net.parameters(), lr=0.1)
