@@ -1,11 +1,11 @@
 # Abstraction and Reasoning Challenge
 
-### Create an AI capable of solving reasoning tasks it has never seen before
+#### Create an AI capable of solving reasoning tasks it has never seen before
 
 https://www.kaggle.com/c/abstraction-and-reasoning-challenge
 
 
-## Build & Run
+### Build & Run
 
 ```bash
 $ docker build -t arc -f Dockerfile .
@@ -23,3 +23,9 @@ $ kaggle competitions download -c abstraction-and-reasoning-challenge -p /data/a
 ```bash
 $ python arc_run.py
 ```
+
+## Related sources
+
+1. [The Abstraction and Reasoning Corpus](https://github.com/fchollet/ARC).
+
+2. [On the Measure of Intelligence](https://arxiv.org/abs/1911.01547).
