@@ -5,13 +5,14 @@ from tqdm import tqdm
 from arc.utils import load_data, flattener, get_logger
 from arc.models import TaskSolverConv1, input_output_shape_is_same, calc_score
 from arc.trees import TaskSolverTree
+from arc.color import TaskSolverColor
 import pickle
 
 BASE_PATH = '/data/arc'
 
 # BASE_PATH = '../input/abstraction-and-reasoning-challenge/'
 
-DEBUG = True
+DEBUG = False
 
 logger = get_logger()
 
@@ -59,36 +60,58 @@ def evaluate(tasks, solver):
 
 if __name__ == '__main__':
 
-    # task_solver = TaskSolverConv1(logger)
-    task_solver = TaskSolverTree(logger)
+    task_solver_1 = TaskSolverConv1(logger)
+    task_solver_2 = TaskSolverTree(logger)
+    task_solver_3 = TaskSolverColor(logger)
+    solvers = [task_solver_1, task_solver_2, task_solver_3]
 
     train_tasks = load_data(BASE_PATH + '/training')
     evaluation_tasks = load_data(BASE_PATH + '/evaluation')
     test_tasks = load_data(BASE_PATH + '/test')
 
-    train_result, train_predictions = evaluate(train_tasks, task_solver)
-    train_solved = [any(score) for score in train_result]
+    submissions = []
 
-    total = sum([len(score) for score in train_result])
-    logger.info(f"train solved : {sum(train_solved)} from {total} ({sum(train_solved) / total})")
+    for i, task_solver in enumerate(solvers):
 
-    evaluation_result, evaluation_predictions = evaluate(evaluation_tasks, task_solver)
-    evaluation_solved = [any(score) for score in evaluation_result]
+        logger.info(f'task solver {i}')
 
-    if DEBUG:
-        with open('pkl/evaluation_tasks.pkl', 'w+b') as f:
-            pickle.dump(evaluation_tasks, f)
-        with open('pkl/evaluation_result.pkl', 'w+b') as f:
-            pickle.dump(evaluation_result, f)
-        with open('pkl/evaluation_predictions.pkl', 'w+b') as f:
-            pickle.dump(evaluation_predictions, f)
-        with open('pkl/evaluation_solved.pkl', 'w+b') as f:
-            pickle.dump(evaluation_solved, f)
+        if DEBUG:
+            train_result, train_predictions = evaluate(train_tasks, task_solver)
+            train_solved = [any(score) for score in train_result]
 
-    total = sum([len(score) for score in evaluation_result])
-    logger.info(f"evaluation solved : {sum(evaluation_solved)} from {total} ({sum(evaluation_solved) / total})")
+            total = sum([len(score) for score in train_result])
+            logger.info(f"train solved : {sum(train_solved)} from {total} ({sum(train_solved) / total})")
 
-    submission = make_prediction(test_tasks, task_solver)
-    submission = submission.reset_index()
-    submission.columns = ['output_id', 'output']
-    submission.to_csv('submission.csv', index=False)
+            evaluation_result, evaluation_predictions = evaluate(evaluation_tasks, task_solver)
+            evaluation_solved = [any(score) for score in evaluation_result]
+
+            total = sum([len(score) for score in evaluation_result])
+            logger.info(f"evaluation solved : {sum(evaluation_solved)} from {total} ({sum(evaluation_solved) / total})")
+
+            with open('pkl/evaluation_tasks.pkl', 'w+b') as f:
+                pickle.dump(evaluation_tasks, f)
+            with open('pkl/evaluation_result.pkl', 'w+b') as f:
+                pickle.dump(evaluation_result, f)
+            with open('pkl/evaluation_predictions.pkl', 'w+b') as f:
+                pickle.dump(evaluation_predictions, f)
+            with open('pkl/evaluation_solved.pkl', 'w+b') as f:
+                pickle.dump(evaluation_solved, f)
+
+        submission = make_prediction(test_tasks, task_solver)
+        submission = submission.reset_index()
+        submission.columns = ['output_id', f'output_{i}']
+        submission = submission.sort_values(by="output_id")
+        submissions.append(submission)
+
+    submission = pd.merge(submissions[0], submissions[1], on='output_id')
+    submission = pd.merge(submission, submissions[2], on='output_id')
+
+    def merge_cols(row):
+        c1 = row[1].strip().split(" ")[:1]
+        c2 = row[2].strip().split(" ")[:1]
+        c3 = row[3].strip().split(" ")[:1]
+        return ' '.join(c1 + c2 + c3)
+
+    submission['output'] = submission.apply(merge_cols, axis=1)
+
+    submission[['output_id', 'output']].to_csv('submission.csv', index=False)
