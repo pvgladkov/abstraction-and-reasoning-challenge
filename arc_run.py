@@ -1,18 +1,20 @@
+import cv2
+import torch
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from arc.utils import load_data, flattener, get_logger
-from arc.models import TaskSolverConv1, input_output_shape_is_same, calc_score
+from arc.nn import TaskSolverConv1, calc_score
 from arc.trees import TaskSolverTree
-from arc.color import TaskSolverColor
+from arc.colors import TaskSolverColor
 import pickle
 
 BASE_PATH = '/data/arc'
 
 # BASE_PATH = '../input/abstraction-and-reasoning-challenge/'
 
-DEBUG = False
+DEBUG = True
 
 logger = get_logger()
 
@@ -20,12 +22,9 @@ logger = get_logger()
 def make_prediction(tasks, solver):
     result = pd.Series()
     for idx, task in tqdm(tasks.items()):
-        if input_output_shape_is_same(task):
-            task_result = solver.train(task['train'])
-            if task_result:
-                pred = solver.predict(task['test'])
-            else:
-                pred = [el['input'] for el in task['test']]
+        task_result = solver.train(task['train'])
+        if task_result:
+            pred = solver.predict(task['test'])
         else:
             pred = [el['input'] for el in task['test']]
 
@@ -40,14 +39,10 @@ def evaluate(tasks, solver):
     predictions = []
     for i, task in enumerate(tqdm(tasks)):
 
-        if input_output_shape_is_same(task):
-            task_result = solver.train(task['train'])
-            if task_result:
-                pred = solver.predict(task['test'])
-                score = calc_score(task['test'], pred)
-            else:
-                pred = [el['input'] for el in task['test']]
-                score = [0] * len(task['test'])
+        task_result = solver.train(task['train'])
+        if task_result:
+            pred = solver.predict(task['test'])
+            score = calc_score(task['test'], pred)
         else:
             pred = [el['input'] for el in task['test']]
             score = [0] * len(task['test'])
