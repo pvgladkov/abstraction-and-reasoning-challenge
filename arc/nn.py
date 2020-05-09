@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn import Conv2d, Conv3d
 from torch.optim import Adam
 
-from arc.utils import inp2img, flips, rotations2, TaskSolver
+from arc.utils import inp2img, flips, rotations2, TaskSolver, input_output_shape_is_same
 
 
 class Conv3(nn.Module):
@@ -46,12 +46,21 @@ class TaskSolverConv1(TaskSolver):
         super(TaskSolverConv1, self).__init__(logger)
         self.net = None
 
+    def _net(self):
+        return Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2, bias=True).cuda()
+
+    def convert_outputs(self, outputs):
+        return outputs.squeeze(dim=0).cpu().numpy().argmax(0)
+
+    def target(self, t):
+        return t
+
     def train(self, task_train, n_epoch=50, debug=False):
 
         if not input_output_shape_is_same(task_train):
             return False
 
-        self.net = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2, bias=True).cuda()
+        self.net = self._net()
 
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.net.parameters(), lr=0.1)
@@ -69,7 +78,7 @@ class TaskSolverConv1(TaskSolver):
                 output_rotations += rotations2(sample['output'])
 
             sample_inputs.append([inp2img(j) for j in input_rotations])
-            sample_outputs.append([j for j in output_rotations])
+            sample_outputs.append([self.target(j) for j in output_rotations])
 
         max_loss = None
         losses_tries = 0
@@ -118,7 +127,7 @@ class TaskSolverConv1(TaskSolver):
             for sample in task_test:
                 inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
                 outputs = self.net(inputs)
-                pred = outputs.squeeze(dim=0).cpu().numpy().argmax(0)
+                pred = self.convert_outputs(outputs)
 
                 assert pred.shape == np.array(sample['input']).shape
                 predictions.append(pred)
@@ -128,15 +137,13 @@ class TaskSolverConv1(TaskSolver):
         return predictions
 
 
-def calc_score(task_test, predict):
-    def comp(out, pred):
-        try:
-            return int(np.equal(out, pred).all())
-        except:
-            return 0
+class TaskSolverConv2(TaskSolverConv1):
 
-    return [comp(sample['output'], pred) for sample, pred in zip(task_test, predict)]
+    def _net(self):
+        return Conv2().cuda()
 
+    def convert_outputs(self, outputs):
+        return outputs.squeeze(dim=0).cpu().numpy().argmax(0).argmax(0)
 
-def input_output_shape_is_same(task):
-    return all([np.array(el['input']).shape == np.array(el['output']).shape for el in task])
+    def target(self, t):
+        return inp2img(t)

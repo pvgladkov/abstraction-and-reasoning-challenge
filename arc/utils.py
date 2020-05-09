@@ -99,3 +99,7 @@ class TaskSolver:
 
     def predict(self, task_test):
         raise NotImplementedError
+
+
+def input_output_shape_is_same(task):
+    return all([np.array(el['input']).shape == np.array(el['output']).shape for el in task])
