@@ -1,6 +1,6 @@
 import numpy as np
 
-from arc.models import TaskSolver
+from arc.utils import TaskSolver
 from xgboost import XGBClassifier
 
 

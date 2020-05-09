@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn import Conv2d, Conv3d
 from torch.optim import Adam
 
-from arc.img_utils import inp2img, rotations2, flips
+from arc.utils import inp2img, flips, rotations2, TaskSolver
 
 
 class Conv3(nn.Module):
@@ -41,18 +41,6 @@ class Conv2(nn.Module):
         return self.conv2(stack_x)
 
 
-class TaskSolver:
-
-    def __init__(self, logger):
-        self.logger = logger
-
-    def train(self, task_train, params):
-        raise NotImplementedError
-
-    def predict(self, task_test):
-        raise NotImplementedError
-
-
 class TaskSolverConv1(TaskSolver):
     def __init__(self, logger):
         super(TaskSolverConv1, self).__init__(logger)
@@ -60,7 +48,7 @@ class TaskSolverConv1(TaskSolver):
 
     def train(self, task_train, n_epoch=30, debug=False):
 
-        self.net = Conv2d(in_channels=10, out_channels=10, kernel_size=3, padding=1, bias=True).cuda()
+        self.net = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2, bias=True).cuda()
 
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.net.parameters(), lr=0.1)

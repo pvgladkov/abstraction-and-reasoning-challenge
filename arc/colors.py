@@ -1,4 +1,4 @@
-from arc.models import TaskSolver
+from arc.utils import TaskSolver
 import numpy as np
 import copy
 
