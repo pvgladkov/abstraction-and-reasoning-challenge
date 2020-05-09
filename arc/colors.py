@@ -26,7 +26,6 @@ class TaskSolverColor(TaskSolver):
 
         for x, y in zip(Input, Output):
             if len(x) != len(y) or len(x[0]) != len(y[0]):
-                self.logger.debug('skip')
                 return default_predictions
 
         Best_Dict = -1

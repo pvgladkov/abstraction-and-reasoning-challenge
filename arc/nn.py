@@ -46,7 +46,10 @@ class TaskSolverConv1(TaskSolver):
         super(TaskSolverConv1, self).__init__(logger)
         self.net = None
 
-    def train(self, task_train, n_epoch=30, debug=False):
+    def train(self, task_train, n_epoch=50, debug=False):
+
+        if not input_output_shape_is_same(task_train):
+            return False
 
         self.net = Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2, bias=True).cuda()
 
@@ -126,8 +129,14 @@ class TaskSolverConv1(TaskSolver):
 
 
 def calc_score(task_test, predict):
-    return [int(np.equal(sample['output'], pred).all()) for sample, pred in zip(task_test, predict)]
+    def comp(out, pred):
+        try:
+            return int(np.equal(out, pred).all())
+        except:
+            return 0
+
+    return [comp(sample['output'], pred) for sample, pred in zip(task_test, predict)]
 
 
 def input_output_shape_is_same(task):
-    return all([np.array(el['input']).shape == np.array(el['output']).shape for el in task['train']])
+    return all([np.array(el['input']).shape == np.array(el['output']).shape for el in task])

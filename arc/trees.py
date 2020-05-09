@@ -105,9 +105,6 @@ class TaskSolverTree(TaskSolver):
             target_rows, target_cols = len(task[task_num]['output']), len(task[task_num]['output'][0])
 
             if (target_rows != nrows) or (target_cols != ncols):
-                print('Number of input rows:', nrows, 'cols:', ncols)
-                print('Number of target rows:', target_rows, 'cols:', target_cols)
-                not_valid = 1
                 return None, None, 1
 
             imsize = nrows * ncols
