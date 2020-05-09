@@ -50,6 +50,16 @@ def rotations(matrix):
     return [matrix, rotate_90(matrix), rotate_180(matrix), rotate_270(matrix)]
 
 
+def rotations2(matrix):
+    matrix = np.array(matrix)
+    return [matrix, np.rot90(matrix, 1), np.rot90(matrix, 2), np.rot90(matrix, 3)]
+
+
+def flips(matrix):
+    matrix = np.array(matrix)
+    return [matrix, np.fliplr(matrix), np.flipud(matrix)]
+
+
 def inp2img(inp):
     inp = np.array(inp)
     img = np.full((10, inp.shape[0], inp.shape[1]), 0, dtype=np.uint8)
@@ -64,3 +74,10 @@ def inp2grey(inp, exp=True):
     if exp:
         return np.expand_dims(b_inp, 0)
     return b_inp
+
+
+def pad(array, high, width):
+    r = np.zeros((high, width), dtype=np.float)
+    np_array = np.array(array)
+    r[:np_array.shape[0], :np_array.shape[1]] = np_array
+    return r

@@ -5,7 +5,27 @@ from torch.nn import Conv2d, Conv3d
 from torch.optim import Adam
 from tqdm import tqdm
 
-from arc_img_utils import rotations, inp2img
+from arc.img_utils import inp2img, rotations2, flips
+
+
+class Conv3(nn.Module):
+    def __init__(self):
+        super(Conv3, self).__init__()
+        self.conv2 = Conv3d(in_channels=10, out_channels=10, kernel_size=5, padding=2, bias=True)
+
+    @staticmethod
+    def mask(index, shape):
+        z = np.full(shape, 0, dtype=np.uint8)
+        z[:, index, :, :] = 1
+        return torch.tensor(z, dtype=torch.float).cuda()
+
+    def forward(self, x):
+        t = []
+        for idx in range(10):
+            t.append(x * self.mask(idx, x.shape))
+
+        stack_x = torch.stack(t, dim=1)
+        return self.conv2(stack_x)
 
 
 class Conv1(nn.Module):
@@ -37,30 +57,36 @@ class TaskSolver:
         self.net = None
         self.logger = logger
 
-    def train(self, task_train, n_epoch=30, debug=False):
+    def train(self, task_train, n_epoch=100, debug=False):
 
-        self.net = Conv1().cuda()
+        self.net = Conv3().cuda()
 
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.net.parameters(), lr=0.1)
 
         sample_inputs = []
         sample_outputs = []
+
         for sample in task_train:
-            input_rotations = rotations(sample['input'])
-            output_rotations = rotations(sample['output'])
+
+            input_rotations = flips(sample['input'])
+            output_rotations = flips(sample['output'])
+
+            if len(sample['input']) == len(sample['input'][0]):
+                input_rotations += rotations2(sample['input'])
+                output_rotations += rotations2(sample['output'])
+
             sample_inputs.append([inp2img(j) for j in input_rotations])
-            sample_outputs.append([j for j in output_rotations])
+            sample_outputs.append([inp2img(j) for j in output_rotations])
 
         max_loss = None
         losses_tries = 0
-        patient = 3
+        patient = 2
 
         for epoch in range(n_epoch):
             epoch_loss = 0
             num_examples = 0
             for sample_input, sample_output in zip(sample_inputs, sample_outputs):
-
                 inputs = torch.FloatTensor(sample_input).cuda()
                 labels = torch.LongTensor(sample_output).cuda()
 
@@ -99,7 +125,7 @@ class TaskSolver:
             for sample in task_test:
                 inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
                 outputs = self.net(inputs)
-                pred = outputs.squeeze(dim=0).cpu().numpy().argmax(0)
+                pred = outputs.squeeze(dim=0).cpu().numpy().argmax(0).argmax(0)
 
                 assert pred.shape == np.array(sample['input']).shape
                 predictions.append(pred)

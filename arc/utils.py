@@ -3,8 +3,6 @@ import os
 
 import cv2
 import numpy as np
-from keras.utils import to_categorical
-from torch.utils.data import Dataset
 import logging
 import sys
 import pandas as pd
