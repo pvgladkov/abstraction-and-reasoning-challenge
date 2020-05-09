@@ -28,16 +28,6 @@ class Conv3(nn.Module):
         return self.conv2(stack_x)
 
 
-class Conv1(nn.Module):
-    def __init__(self):
-        super(Conv1, self).__init__()
-        self.conv1 = Conv2d(in_channels=10, out_channels=10, kernel_size=3, padding=1, bias=True)
-
-    def forward(self, x):
-        conv1_output = self.conv1(x)
-        return conv1_output
-
-
 class Conv2(nn.Module):
     def __init__(self):
         super(Conv2, self).__init__()
@@ -52,14 +42,14 @@ class Conv2(nn.Module):
         return self.conv2(stack_x)
 
 
-class TaskSolver:
+class TaskSolverConv1:
     def __init__(self, logger):
         self.net = None
         self.logger = logger
 
-    def train(self, task_train, n_epoch=100, debug=False):
+    def train(self, task_train, n_epoch=30, debug=False):
 
-        self.net = Conv3().cuda()
+        self.net = Conv2d(in_channels=10, out_channels=10, kernel_size=3, padding=1, bias=True).cuda()
 
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.net.parameters(), lr=0.1)
@@ -77,7 +67,7 @@ class TaskSolver:
                 output_rotations += rotations2(sample['output'])
 
             sample_inputs.append([inp2img(j) for j in input_rotations])
-            sample_outputs.append([inp2img(j) for j in output_rotations])
+            sample_outputs.append([j for j in output_rotations])
 
         max_loss = None
         losses_tries = 0
@@ -106,6 +96,7 @@ class TaskSolver:
 
             if max_loss is None:
                 max_loss = epoch_loss
+
             if debug and epoch % 5 == 0:
                 self.logger.debug('epoch {}, loss {}'.format(epoch, round(epoch_loss / num_examples, 6)))
 
@@ -125,7 +116,7 @@ class TaskSolver:
             for sample in task_test:
                 inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
                 outputs = self.net(inputs)
-                pred = outputs.squeeze(dim=0).cpu().numpy().argmax(0).argmax(0)
+                pred = outputs.squeeze(dim=0).cpu().numpy().argmax(0)
 
                 assert pred.shape == np.array(sample['input']).shape
                 predictions.append(pred)
@@ -144,7 +135,7 @@ def input_output_shape_is_same(task):
 
 
 def evaluate(tasks, logger):
-    ts = TaskSolver(logger)
+    ts = TaskSolverConv1(logger)
     result = []
     predictions = []
     for i, task in enumerate(tqdm(tasks)):

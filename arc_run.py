@@ -1,11 +1,9 @@
-import cv2
 import numpy as np
 import pandas as pd
-import torch
 from tqdm import tqdm
 
-from arc_utils import load_data, flattener, dump_json, get_logger
-from arc_models import TaskSolver, evaluate, input_output_shape_is_same
+from arc.utils import load_data, flattener, get_logger
+from arc.models import TaskSolverConv1, evaluate, input_output_shape_is_same
 import pickle
 
 BASE_PATH = '/data/arc'
@@ -18,7 +16,7 @@ logger = get_logger()
 
 
 def make_prediction(tasks, logger):
-    ts = TaskSolver(logger)
+    ts = TaskSolverConv1(logger)
     result = pd.Series()
     for idx, task in tqdm(tasks.items()):
         if input_output_shape_is_same(task):
