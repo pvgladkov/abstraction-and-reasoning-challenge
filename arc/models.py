@@ -3,7 +3,6 @@ import torch
 from torch import nn
 from torch.nn import Conv2d, Conv3d
 from torch.optim import Adam
-from tqdm import tqdm
 
 from arc.img_utils import inp2img, rotations2, flips
 
@@ -42,10 +41,22 @@ class Conv2(nn.Module):
         return self.conv2(stack_x)
 
 
-class TaskSolverConv1:
+class TaskSolver:
+
     def __init__(self, logger):
-        self.net = None
         self.logger = logger
+
+    def train(self, task_train, params):
+        raise NotImplementedError
+
+    def predict(self, task_test):
+        raise NotImplementedError
+
+
+class TaskSolverConv1(TaskSolver):
+    def __init__(self, logger):
+        super(TaskSolverConv1, self).__init__(logger)
+        self.net = None
 
     def train(self, task_train, n_epoch=30, debug=False):
 
@@ -108,7 +119,7 @@ class TaskSolverConv1:
                 self.logger.debug('early stopping')
                 break
 
-        return self
+        return True
 
     def predict(self, task_test):
         predictions = []
@@ -132,27 +143,3 @@ def calc_score(task_test, predict):
 
 def input_output_shape_is_same(task):
     return all([np.array(el['input']).shape == np.array(el['output']).shape for el in task['train']])
-
-
-def evaluate(tasks, logger):
-    ts = TaskSolverConv1(logger)
-    result = []
-    predictions = []
-    for i, task in enumerate(tqdm(tasks)):
-        debug = False
-        if i % 100 == 0:
-            logger.debug(f'task {i}')
-            debug = True
-
-        if input_output_shape_is_same(task):
-            ts.train(task['train'], debug=debug)
-            pred = ts.predict(task['test'])
-            score = calc_score(task['test'], pred)
-        else:
-            pred = [el['input'] for el in task['test']]
-            score = [0] * len(task['test'])
-
-        predictions.append(pred)
-        result.append(score)
-
-    return result, predictions
