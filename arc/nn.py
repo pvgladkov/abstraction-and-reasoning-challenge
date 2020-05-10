@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torch.nn import Conv2d, Conv3d
 from torch.optim import Adam
+from arc.unet import UNet
 
 from arc.utils import inp2img, flips, rotations2, TaskSolver, input_output_shape_is_same
 
@@ -30,8 +31,8 @@ class Conv3(nn.Module):
 class Conv2(nn.Module):
     def __init__(self):
         super(Conv2, self).__init__()
-        self.conv1 = Conv2d(in_channels=10, out_channels=2, kernel_size=7, padding=3, bias=True)
-        self.conv2 = Conv3d(in_channels=2, out_channels=10, kernel_size=7, padding=3, bias=True)
+        self.conv1 = Conv2d(in_channels=10, out_channels=2, kernel_size=5, padding=2, bias=True)
+        self.conv2 = Conv3d(in_channels=2, out_channels=10, kernel_size=5, padding=2, bias=True)
 
     def forward(self, x):
         grey_x = self.conv1(x)
@@ -42,9 +43,10 @@ class Conv2(nn.Module):
 
 
 class TaskSolverConv1(TaskSolver):
-    def __init__(self, logger):
+    def __init__(self, logger, n_epoch=30):
         super(TaskSolverConv1, self).__init__(logger)
         self.net = None
+        self.n_epoch = n_epoch
 
     def _net(self):
         return Conv2d(in_channels=10, out_channels=10, kernel_size=5, padding=2, bias=True).cuda()
@@ -55,7 +57,7 @@ class TaskSolverConv1(TaskSolver):
     def target(self, t):
         return t
 
-    def train(self, task_train, n_epoch=50, debug=False):
+    def train(self, task_train, debug=False):
 
         if not input_output_shape_is_same(task_train):
             return False
@@ -84,7 +86,7 @@ class TaskSolverConv1(TaskSolver):
         losses_tries = 0
         patient = 2
 
-        for epoch in range(n_epoch):
+        for epoch in range(self.n_epoch):
             epoch_loss = 0
             num_examples = 0
             for sample_input, sample_output in zip(sample_inputs, sample_outputs):
@@ -94,7 +96,11 @@ class TaskSolverConv1(TaskSolver):
                 # self.logger.debug(f'inputs {inputs.shape}, labels {labels.shape}')
 
                 optimizer.zero_grad()
-                outputs = self.net(inputs)
+                try:
+                    outputs = self.net(inputs)
+                except Exception as e:
+                    self.logger.debug(e)
+                    return False
 
                 # self.logger.debug(f'outputs {outputs.shape}')
 
@@ -124,9 +130,14 @@ class TaskSolverConv1(TaskSolver):
     def predict(self, task_test):
         predictions = []
         with torch.no_grad():
+            self.net.eval()
             for sample in task_test:
                 inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
-                outputs = self.net(inputs)
+                try:
+                    outputs = self.net(inputs)
+                except Exception as e:
+                    self.logger.debug(e)
+                    return [el['input'] for el in task_test]
                 pred = self.convert_outputs(outputs)
 
                 assert pred.shape == np.array(sample['input']).shape
@@ -147,3 +158,9 @@ class TaskSolverConv2(TaskSolverConv1):
 
     def target(self, t):
         return inp2img(t)
+
+
+class TaskSolverUNet(TaskSolverConv1):
+
+    def _net(self):
+        return UNet(10, 10, bilinear=False).cuda()

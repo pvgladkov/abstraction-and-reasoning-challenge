@@ -5,8 +5,8 @@ import pandas as pd
 from tqdm import tqdm
 
 from arc.utils import load_data, flattener, get_logger
-from arc.nn import TaskSolverConv1, calc_score
-from arc.trees import TaskSolverTree
+from arc.nn import TaskSolverConv1, TaskSolverConv2, TaskSolverUNet
+from arc.trees import TaskSolverTree, TaskSolverTree2
 from arc.colors import TaskSolverColor
 import pickle
 
@@ -34,11 +34,20 @@ def make_prediction(tasks, solver):
     return result
 
 
+def calc_score(task_test, predict):
+    def comp(out, pred):
+        try:
+            return int(np.equal(out, pred).all())
+        except:
+            return 0
+
+    return [comp(sample['output'], pred) for sample, pred in zip(task_test, predict)]
+
+
 def evaluate(tasks, solver):
     result = []
     predictions = []
     for i, task in enumerate(tqdm(tasks)):
-
         task_result = solver.train(task['train'])
         if task_result:
             pred = solver.predict(task['test'])
@@ -55,7 +64,9 @@ def evaluate(tasks, solver):
 
 if __name__ == '__main__':
 
-    task_solver_1 = TaskSolverConv1(logger)
+    # task_solver_1 = TaskSolverTree2(logger)
+    task_solver_1 = TaskSolverUNet(logger, n_epoch=100)
+    # task_solver_1 = TaskSolverConv2(logger)
     task_solver_2 = TaskSolverTree(logger)
     task_solver_3 = TaskSolverColor(logger)
     solvers = [task_solver_1, task_solver_2, task_solver_3]
