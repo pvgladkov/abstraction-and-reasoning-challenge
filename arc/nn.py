@@ -135,15 +135,32 @@ class TaskSolverConv1(TaskSolver):
                 inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
                 try:
                     outputs = self.net(inputs)
+                    pred = self.convert_outputs(outputs)
                 except Exception as e:
                     self.logger.debug(e)
-                    return [el['input'] for el in task_test]
-                pred = self.convert_outputs(outputs)
+                    pred = np.zeros(np.array(sample['input']).shape)
 
                 assert pred.shape == np.array(sample['input']).shape
                 predictions.append(pred)
 
                 # self.logger.debug(f'prediction inputs {inputs.shape}, outputs {outputs.shape}, pred {pred.shape}')
+
+        return predictions
+
+    def predict_proba(self, task_test):
+        predictions = []
+        with torch.no_grad():
+            self.net.eval()
+            for sample in task_test:
+                inputs = torch.FloatTensor(inp2img(sample['input'])).unsqueeze(dim=0).cuda()
+                try:
+                    outputs = self.net(inputs)
+                    pred = outputs.squeeze(dim=0).cpu().numpy()
+                except Exception as e:
+                    self.logger.debug(e)
+                    pred = np.zeros(inp2img(sample['input']).shape)
+
+                predictions.append(pred)
 
         return predictions
 
