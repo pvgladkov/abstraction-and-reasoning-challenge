@@ -1,14 +1,13 @@
-import cv2
-import torch
+import pickle
+
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from arc.utils import load_data, flattener, get_logger
-from arc.nn import TaskSolverConv1, TaskSolverConv2, TaskSolverUNet
-from arc.trees import TaskSolverTree, TaskSolverTree2
 from arc.colors import TaskSolverColor
-import pickle
+from arc.sophisticated_trees import StackedTaskSolver
+from arc.trees import TaskSolverTree
+from arc.utils import load_data, flattener, get_logger
 
 BASE_PATH = '/data/arc'
 
@@ -64,12 +63,11 @@ def evaluate(tasks, solver):
 
 if __name__ == '__main__':
 
-    # task_solver_1 = TaskSolverTree2(logger)
-    task_solver_1 = TaskSolverUNet(logger, n_epoch=100)
-    # task_solver_1 = TaskSolverConv2(logger)
+    task_solver_1 = StackedTaskSolver(logger)
     task_solver_2 = TaskSolverTree(logger)
     task_solver_3 = TaskSolverColor(logger)
-    solvers = [task_solver_1, task_solver_2, task_solver_3]
+
+    solvers = [task_solver_2]
 
     train_tasks = load_data(BASE_PATH + '/training')
     evaluation_tasks = load_data(BASE_PATH + '/evaluation')
