@@ -1,12 +1,13 @@
-import numpy as np
-
-from arc.utils import TaskSolver, input_output_shape_is_same
-from xgboost import XGBClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import BaggingClassifier
+from collections import defaultdict
 from itertools import product, combinations, permutations
 from math import floor
-from collections import defaultdict
+
+import numpy as np
+from sklearn.ensemble import BaggingClassifier
+from sklearn.tree import DecisionTreeClassifier
+from xgboost import XGBClassifier
+
+from arc.utils import TaskSolver, input_output_shape_is_same, flips, rotations2
 
 
 class TaskSolverTree(TaskSolver):
@@ -37,22 +38,22 @@ class TaskSolverTree(TaskSolver):
     @staticmethod
     def get_moore_neighbours(color, cur_row, cur_col, nrows, ncols):
 
-        if cur_row <= 0:
+        if (cur_row <= 0) or (cur_col > ncols - 1):
             top = -1
         else:
             top = color[cur_row - 1][cur_col]
 
-        if cur_row >= nrows - 1:
+        if (cur_row >= nrows - 1) or (cur_col > ncols - 1):
             bottom = -1
         else:
             bottom = color[cur_row + 1][cur_col]
 
-        if cur_col <= 0:
+        if (cur_col <= 0) or (cur_row > nrows - 1):
             left = -1
         else:
             left = color[cur_row][cur_col - 1]
 
-        if cur_col >= ncols - 1:
+        if (cur_col >= ncols - 1) or (cur_row > nrows - 1):
             right = -1
         else:
             right = color[cur_row][cur_col + 1]
@@ -77,7 +78,7 @@ class TaskSolverTree(TaskSolver):
 
         return top_left, top_right
 
-    def make_features(self, input_color, nfeat=13, local_neighb=5):
+    def make_features(self, input_color, nfeat=30, local_neighb=5):
         nrows, ncols = input_color.shape
         feat = np.zeros((nrows * ncols, nfeat))
         cur_idx = 0
@@ -93,29 +94,34 @@ class TaskSolverTree(TaskSolver):
                 feat[cur_idx, 11] = (i + j)
                 feat[cur_idx, 12] = len(np.unique(input_color[i - local_neighb:i + local_neighb,
                                                   j - local_neighb:j + local_neighb]))
+                feat[cur_idx, 13:17] = self.get_moore_neighbours(input_color, i + 1, j, nrows, ncols)
+                feat[cur_idx, 17:21] = self.get_moore_neighbours(input_color, i - 1, j, nrows, ncols)
+
+                feat[cur_idx, 21:25] = self.get_moore_neighbours(input_color, i, j + 1, nrows, ncols)
+                feat[cur_idx, 25:29] = self.get_moore_neighbours(input_color, i, j - 1, nrows, ncols)
 
                 cur_idx += 1
 
         return feat
 
     def features(self, task):
-        num_train_pairs = len(task)
         feat, target = [], []
 
-        for task_num in range(num_train_pairs):
-            input_color = np.array(task[task_num]['input'])
-            target_color = task[task_num]['output']
-            nrows, ncols = len(task[task_num]['input']), len(task[task_num]['input'][0])
+        for sample in task:
+            nrows, ncols = len(sample['input']), len(sample['input'][0])
 
-            target_rows, target_cols = len(task[task_num]['output']), len(task[task_num]['output'][0])
+            target_rows, target_cols = len(sample['output']), len(sample['output'][0])
 
             if (target_rows != nrows) or (target_cols != ncols):
                 return None, None, 1
 
-            imsize = nrows * ncols
-            # offset = imsize*task_num*3 #since we are using three types of aug
-            feat.extend(self.make_features(input_color))
-            target.extend(np.array(target_color).reshape(-1, ))
+            for input_fl, output_fl in zip(flips(sample['input']), flips(sample['output'])):
+                feat.extend(self.make_features(input_fl))
+                target.extend(np.array(output_fl).reshape(-1, ))
+
+            for input_rot, output_rot in zip(rotations2(sample['input']), rotations2(sample['output'])):
+                feat.extend(self.make_features(input_rot))
+                target.extend(np.array(output_rot).reshape(-1, ))
 
         return np.array(feat), np.array(target), 0
 
